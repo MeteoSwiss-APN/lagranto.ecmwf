@@ -255,8 +255,8 @@ c     Read surface pressure
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
     
 c     Check that surface pressure is in hPa
-      maxps = -1.e39
-      minps =  1.e39
+      maxps = -HUGE(maxps)
+      minps =  HUGE(minps)
       do i=1,vardim(1)
         do j=1,vardim(2)
              if (tmp2(i,j).gt.maxps) maxps = tmp2(i,j)

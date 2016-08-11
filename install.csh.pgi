@@ -25,15 +25,15 @@ echo "Installation directory for links to executables:\
   path_sync=$path_sync"
 
 # Set Fortran compiler
-setenv FORTRAN gfortran
+setenv FORTRAN pgf90
 
 # Add flags for debugging (gfortran)
-setenv FORTRAN "$FORTRAN -g -fbacktrace -ffpe-trap=invalid,zero,overflow -fbounds-check -fcheck-array-temporaries"
+#gnu# setenv FORTRAN "$FORTRAN -g -fbacktrace -ffpe-trap=invalid,zero,overflow -fbounds-check -fcheck-array-temporaries"
 
 # Some programs use uninitialized variables
 # Programs known tho have this problem: newtime (integer only), ...?
 # Better force gfortran to initialize all of them (like ifort and pgf90 do):
-setenv FORTRAN "$FORTRAN -finit-real=zero -finit-integer=0"
+#gnu# setenv FORTRAN "$FORTRAN -finit-real=zero -finit-integer=0"
 # (does not help with caltra bug)
 
 # ioinp_cdo.f has two statements ('maxps = -1.e39' and 'minps =
@@ -87,8 +87,12 @@ endif
 setenv LAGRANTO ${path_devel}
 
 # Set netCDF paths
-setenv NETCDF_LIB `nc-config --flibs`
-setenv NETCDF_INC `nc-config --fflags`
+#mch-pgi setenv NETCDF_LIB `nc-config --flibs`
+#mch-pgi setenv NETCDF_INC `nc-config --fflags`
+#mch-pgi            module load GCC/4.9.3-binutils-2.25
+#mch-pgi            module load PrgEnv-pgi/16.3
+setenv NETCDF_LIB "$NETCDF_FLIB" #mch-pgi
+setenv NETCDF_INC "$NETCDF_FLIB" #mch-pgi
 
 # Set list of core programs
 set core  = "create_startf caltra trace select density lidar"

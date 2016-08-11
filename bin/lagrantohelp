@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 set dir    = ${LAGRANTO}/docu/
-set viewer = okular
+set viewer = evince
 set nargv  = ${#argv}
 
 if ( (${#argv} == 0) ) then

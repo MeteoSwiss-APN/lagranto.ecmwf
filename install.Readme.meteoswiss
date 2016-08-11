@@ -1,0 +1,222 @@
+# LAGRANTO at CSCS
+# ================
+
+Installation instructions supplemented with MeteoSwiss sprecific notes
+
+1. Code retrieval
+------------------
+
+Download the latest Lagranto version from SVN repository <https://svn.iac.ethz.ch/websvn/pub/wsvn/>.
+
+Then create a directory where you want Lagranto to be installed; place the whole source code in this
+directory and set an environment variable {LAGRANTO} pointing to this directory.
+
+> setenv LAGRANTO {PATH TO YOUR LAGRANTO INSTALLATION}
+
+To avoid cluttering the home directory with object and executable
+files, preferably generate a copy of the source code on $SCRATCH for
+the compilation step. Let the environment variable DYN_TOOLS point to the
+location, where the copy is to be placed.
+
+Define environment variables for install.csh:
+
+  export DYN_TOOLS=$SCRATCH/lagranto-ifs
+  export LAGRANTO=$DYN_TOOLS/lagranto.ecmwf
+
+Note: While the location of DYN_TOOLS can be chosen freely, the
+      directory name "lagranto.ecmwf" in the environment variable
+      LAGRANTO is hardcoded in the script install.csh (see definition
+      of path_devel and path_sync in install.csh)
+
+Generate these directories if they don't exist:
+
+  [ -d $DYN_TOOLS ] || mkdir $DYN_TOOLS
+  [ -d $DYN_TOOLS/lagranto ] || mkdir $DYN_TOOLS/lagranto
+
+Copy or synchronize the newest version of source code in the current
+working directory with the copy under DYN_TOOLS. Use a test expression
+to make sure to execute the command in the directory where
+install.Readme.mch resides:
+
+  [ -f install.Readme.meteoswiss ] && rsync -ruv ./ $LAGRANTO || echo 'Nothing done: Wrong source directory!'
+
+
+2. Compiling the Lagranto code
+-------------------------------
+
+Define environment (as explained in step 1):
+
+  export DYN_TOOLS=$SCRATCH/lagranto-ifs
+  export LAGRANTO=$DYN_TOOLS/lagranto.ecmwf
+
+The script "install.csh" has been adapted to the MeteoSwiss needs on
+the CSCS machine kesch. Here a copy of the install commands, with
+comments:
+
+  cd ${LAGRANTO}/
+
+Run the install.csh script to generate the libraries, executables, and docs.
+Essential for caltra are only the steps lib, caltra, goodies, links:
+
+  ./install.csh clean    # Some No match/No such file messages might appear
+  ./install.csh lib      # Copies relevant ioinp_*.f to ioinp.f prior to compilation
+  ./install.csh create_startf
+  ./install.csh caltra
+
+  ./install.csh trace
+  ./install.csh select   # produces 2 compiler warnings
+  ./install.csh density
+  ./install.csh lidar    # produces 1 compiler warning
+  ./install.csh goodies  # uses adapted tracal.install
+  ./install.csh docu
+  ./install.csh links
+
+Add the end of the installation, you can add the following directory
+to your PATH variable. In <bash> this should look like
+
+  export PATH=${LAGRANTO}/bin/:$PATH
+
+If the <LAGRANTO/bin> directory is in your PATH, then you will be able
+to run Lagranto from any directory.  Otherwise, you will always have
+to give the full path to your Lagranto commands, e.g.
+
+ ${LAGRANTO}/bin/caltra
+
+
+3. Compiling the Grib-netCDF converter
+--------------------------------------
+
+This step is not needed if using CDO and NCO as converter.
+
+
+4. Lagranto documentation
+-------------------------
+
+Lagranto comes with a detailed documentation; you can start it with one of the following calls:
+
+ lagrantohelp
+ lagrantohelp tutorial
+ lagrantohelp reference
+
+The most important program for you will be <caltra> which calculates the trajectories...
+
+ lagrantohelp caltra
+
+I have adapted the script lagrantohelp to use 'evince' instead of
+'okular' for pdf files.
+
+In case you need to see the documentation for caltra without the help
+of lagrantohelp, use:
+
+  man caltra $LAGRANTO/docu/man/caltra.0
+
+
+5. Test data set
+-----------------
+
+On our FTP server you find a sample data set which allows you to run Lagranto without bothering about the
+Grib-netCDF conversion.
+
+ftp://iacftp.ethz.ch/pub_read/sprenger/lagranto.ecmwf.test/
+
+Use data in subdirectory cdo of the specified source. For the folloing
+step, the local copy of the test data is placed in $DYN_TOOLS/test-cdo
+
+The reference file in the ftp repository may have many trailing spaces
+in the file name 'trajectory    ', rename the file to a more convenient
+name, e.g.
+
+  mv trajectory* trajectory.ref
+
+
+6. Minimal test run
+--------------------
+
+Note: The installation step "install.csh sync" creates a link with
+the name 'starf' in the directory $LAGRANTO, pointing to the directory
+create_startf. The name of this link is the same as the default name
+of the file defining the starting positions. Avoid running caltra in
+the directory $LAGRANTO.
+
+Define environment (as explained in step 1):
+
+  export DYN_TOOLS=$SCRATCH/lagranto-ifs
+  export LAGRANTO=$DYN_TOOLS/lagranto.ecmwf
+
+Change to the test directory retrieved in step 5 to avoid a name clash, e.g.
+
+  cd $DYN_TOOLS/test-cdo
+
+
+a) See the starting position in the file <startf>; the format is <longitude latitude pressure>.
+
+  cat startf
+
+Each line corresponds to a single starting position. Note that longitudes must be within -180 ... +180 deg.
+
+If no startf exists, create one
+(e.g. with BaselBinnigen 7.58 47.54, Gipf-Oberfrick 8.0 47.5, Zuerich 8.57 47.38):
+
+   echo "7.58 47.54 850" >  startf
+   echo "8.00 47.50 850" >> startf
+   echo "8.57 47.38 850" >> startf
+
+b) Start the trajectory
+
+Load necessary modules before running the test:
+
+  module load PrgEnv-gnu
+  module load netCDF-Fortran
+#  module load grib_api
+
+Run caltra (the use of the full path is only needed if you have not
+extenden the PATH variable as suggested in step 2). Note that
+bin/caltra is a soft-link to the shell script caltra/caltra.sh and not
+the executable.
+
+Usage: caltra(.sh) START-DATE_TIME END-DATE_TIME INPUT-FILE OUTPUT-FILE [ OPTIONS ]
+
+Needs the environment variable LAGRANTO to be defined.
+
+  $LAGRANTO/bin/caltra 20160201_00 20160201_18 startf trajectory.tst -j
+
+or
+
+  $LAGRANTO/bin/caltra 20160810_00 20160810_18 startf trajectory.tst -j
+
+or for debugging:
+
+  csh -vx $LAGRANTO/bin/caltra 20160201_00 20160201_18 startf trajectory.tst -j
+
+Note that the program $LAGRANTO/goodies/newtime does not work
+correctly when compiled with gfortran. Therefore, I have added a
+workaround using the shell comand "date" in the caltra.sh script
+($LAGRANTO/bin/caltra is a link to that script).
+
+
+Compare the results from caltra with the reference file trajectory:
+
+  head trajectory*
+
+or use tkdiff for the comparison (only useful if differences are few):
+
+  module load tkdiff
+  tkdiff trajectory*
+
+It is a forward trajectory starting at 00 UTC 1 Feb 2016. The time span is 18 UTC. Starting positions are
+taken from <startf>, the output is written to <trajectory>. For details about the optional flag <-j> and
+<-notimecheck>, please consult the Lagranto help <lagrantohelp caltra>.
+
+
+
+Additional tests
+----------------
+
+Check the functioning of newtime with:
+
+  $LAGRANTO/bin/newtime 20160803_00 3
+
+The result should be 20160803_03 (and is 20160805_13 without or
+20020706_12 with -finit-integer=-999999 option, correct output with
+-finit-integer=0, proving that one or more uninitialized integer
+variable is the problem)

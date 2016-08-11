@@ -1,7 +1,7 @@
 # ----- Load modules --------------------------
 
-module load netcdf/4.2.1-pgf90
-module list 
+# module load netcdf/4.2.1-pgf90 # incorrect name, already loaded
+# module list                    # not available at CSCS
 
 set tool = tracal
 
