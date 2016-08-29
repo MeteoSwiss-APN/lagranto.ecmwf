@@ -102,14 +102,18 @@ c     Netcdf variables
       integer      cstid
       integer      nvars
       character*80 vars(100)
-      integer        dimids (nf90_max_var_dims)
+      integer        dimids (nf90_max_var_dims),dimid
       character*80   dimname(nf90_max_var_dims)
+      character*80   stdname
       real,allocatable, dimension (:)     :: lon,lat,lev
       real,allocatable, dimension (:)     :: times
       real,allocatable, dimension (:,:)   :: tmp2
       real,allocatable, dimension (:,:,:) :: tmp3
       real,allocatable, dimension (:)     :: aktmp,bktmp
       character*80  units
+      character*80  leveltype
+      integer       nakbktmp
+      integer       vertical_swap
 
 c     Auxiliary variables
       integer      ierr       
@@ -125,7 +129,9 @@ c     Auxiliary variables
       integer      closear
       real         maxps,minps
 
-c     ------ Set file identifier --------------------------------------
+c     ---- Read data from netCDF file as they are ---------------------
+
+c     Set file identifier
       if (fid.lt.0) then
         cdfid = -fid
       else 
@@ -162,6 +168,12 @@ c     Get dimensions -> vardim(1:ndim),dimname(1:ndim)
            IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       enddo
 
+c     Get dimension of AK,BK
+      varname = 'nhym'
+      ierr = NF90_INQ_DIMID(cdfid,varname,dimid)
+      ierr = nf90_inquire_dimension(cdfid, dimid,len=nakbktmp)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+
 c     Check whether the list of dimensions is OK
       if ( ( dimname(1).ne.'lon'  ).or.
      >     ( dimname(2).ne.'lat'  ).or. 
@@ -174,6 +186,20 @@ c     Check whether the list of dimensions is OK
         stop
       endif
 
+c     Check about the type of vertical levels
+      varname=dimname(3)
+      ierr = NF90_INQ_VARID(cdfid,varname,varid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_get_att(cdfid, varid, "standard_name", leveltype)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      if ( (leveltype.ne.'hybrid_sigma_pressure').and.
+     >     (leveltype.ne.'air_pressure'         ) )
+     >then
+         print*,' ERROR: input netCDF data must be on hybrid-sigma'
+         print*,'        or air pressure levels!',trim(leveltype)
+         stop
+      endif
+
 c     Allocate memory for reading arrays
       allocate(tmp2(vardim(1),vardim(2)),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array tmp2     ***'
@@ -183,14 +209,16 @@ c     Allocate memory for reading arrays
       if (stat.ne.0) print*,'*** error allocating array lon     ***' 
       allocate(lat(vardim(2)),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array lat     ***' 
+      allocate(lev(vardim(3)),stat=stat)
+      if (stat.ne.0) print*,'*** error allocating array lev     ***'
       allocate(times(vardim(4)),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array times   ***'
-      allocate(aktmp(vardim(3)),stat=stat)
+      allocate(aktmp(nakbktmp),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array aktmp   ***'
-      allocate(bktmp(vardim(3)),stat=stat)
+      allocate(bktmp(nakbktmp),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array bktmp   ***'
 
-c     Get domain longitudes and latitudes
+c     Get domain longitudes, latitudes and levels
       varname = dimname(1)
       ierr = NF90_INQ_VARID(cdfid,varname,varid)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
@@ -200,6 +228,11 @@ c     Get domain longitudes and latitudes
       ierr = NF90_INQ_VARID(cdfid,varname,varid)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       ierr = nf90_get_var(cdfid,varid,lat)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      varname = dimname(3)
+      ierr = NF90_INQ_VARID(cdfid,varname,varid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_get_var(cdfid,varid,lev)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       
 c     Get ak and bk
@@ -221,10 +254,39 @@ c     Check that unit of ak is in hPa - if necessary correct it
       ierr = nf90_get_att(cdfid, varid, "units", units)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       if ( units.eq.'Pa' ) then
-         do k=1,vardim(3)
+         do k=1,nakbktmp
             aktmp(k) = 0.01 * aktmp(k)
          enddo
       endif
+
+c     Check that unit of lev is in hPa - if necessary correct it
+      if ( leveltype.eq.'air_pressure' ) then
+         varname='lev'
+         ierr = NF90_INQ_VARID(cdfid,varname,varid)
+         IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+         ierr = nf90_get_att(cdfid, varid, "units", units)
+         IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+         if ( units.eq.'Pa' ) then
+            do k=1,vardim(3)
+               lev(k) = 0.01 * lev(k)
+            enddo
+         endif
+      endif
+
+c     Decide whether to swap vertical levels - highest pressure at index 1
+      vertical_swap = 1
+      if ( leveltype.eq.'hybrid_sigma_pressure') then
+        if ( (aktmp(1) + bktmp(1) * 1000.).gt.
+     >       (aktmp(2) + bktmp(2) * 1000.) )
+     >  then
+          vertical_swap = 0
+        endif
+      elseif ( leveltype.eq.'air_pressure') then
+        if ( lev(1).gt.lev(2) ) then
+          vertical_swap = 0
+        endif
+      endif
+c      print*,' Vertical SWAP P -> ', vertical_swap
 
 c     Get time information (check if time is correct)
       varname = 'time'
@@ -255,8 +317,8 @@ c     Read surface pressure
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
     
 c     Check that surface pressure is in hPa
-      maxps = -HUGE(maxps)
-      minps =  HUGE(minps)
+      maxps = -1.e19
+      minps =  1.e19
       do i=1,vardim(1)
         do j=1,vardim(2)
              if (tmp2(i,j).gt.maxps) maxps = tmp2(i,j)
@@ -269,14 +331,20 @@ c     Check that surface pressure is in hPa
          stop
       endif
 
-c     Calculate layer and level pressures
-      do i=1,vardim(1)
-         do j=1,vardim(2)
-               do k=1,vardim(3)
-                  tmp3(i,j,k)=aktmp(k)+bktmp(k)*tmp2(i,j)
-               enddo
+c     ---- Define output of subroutine --------------------------------
+
+c     If not full list of vertical levels, reduce AK,BK arrays
+      if ( (leveltype.eq.'hybrid_sigma_pressure').and.
+     >     (nakbktmp.ne.vardim(3) ) )
+     >then
+         print*,' WARNING: only subset of vertical levels used...'
+         do k=1,vardim(3)
+            if ( vertical_swap.eq.1 ) then
+               aktmp(k) = aktmp( k+nakbktmp-vardim(3) )
+               bktmp(k) = bktmp( k+nakbktmp-vardim(3) )
+            endif
          enddo
-      enddo
+      endif
 
 c     Set the grid dimensions and constants
       nx      = vardim(1)
@@ -303,6 +371,26 @@ c     Set the grid dimensions and constants
 c     Save the output arrays (if fid>0) - close arrays on request
       if ( fid.gt.0 ) then
 
+c        Calculate layer pressures
+         if (leveltype.eq.'hybrid_sigma_pressure' ) then
+            do i=1,vardim(1)
+              do j=1,vardim(2)
+                 do k=1,vardim(3)
+                  tmp3(i,j,k)=aktmp(k)+bktmp(k)*tmp2(i,j)
+                 enddo
+              enddo
+           enddo
+         elseif (leveltype.eq.'air_pressure' ) then
+           do i=1,vardim(1)
+              do j=1,vardim(2)
+                 do k=1,vardim(3)
+                  tmp3(i,j,k)=lev(k)
+                 enddo
+              enddo
+           enddo
+         endif
+
+c        Get PS - close array on demand
          do j=1,vardim(2)
            do i=1,vardim(1)
              ps(i,j) = tmp2(i,j)
@@ -310,21 +398,42 @@ c     Save the output arrays (if fid>0) - close arrays on request
            if (closear.eq.1) ps(vardim(1)+1,j) = ps(1,j)
          enddo
 
+c        Get P3 - close array on demand + vertical swap
          do j=1,vardim(2)
            do k=1,vardim(3)
              do i=1,vardim(1)
-               p3(i,j,k) = tmp3(i,j,vardim(3)-k+1)
+               if ( vertical_swap.eq.1 ) then
+                  p3(i,j,k) = tmp3(i,j,vardim(3)-k+1)
+               else
+                  p3(i,j,k) = tmp3(i,j,k)
+               endif
              enddo
              if (closear.eq.1) p3(vardim(1)+1,j,k) = p3(1,j,k)
            enddo
          enddo
 
-         do k=1,vardim(3)
-            ak(k) = aktmp(vardim(3)-k+1)
-            bk(k) = bktmp(vardim(3)-k+1)
-         enddo
+c        Get AK,BK - vertical swap on demand
+         if ( leveltype.eq.'hybrid_sigma_pressure' ) then
+           do k=1,vardim(3)
+              if ( vertical_swap.eq.1 ) then
+                 ak(k) = aktmp(vardim(3)-k+1)
+                 bk(k) = bktmp(vardim(3)-k+1)
+              endif
+           enddo
+         elseif (leveltype.eq.'air_pressure' ) then
+           do k=1,vardim(3)
+              if ( vertical_swap.eq.1 ) then
+                 ak(k) = lev(vardim(3)-k+1)
+                 bk(k) = 0.
+              else
+                ak(k) = lev(k)
+                bk(k) = 0.
+              endif
+           enddo
+         endif
 
       endif
+
 
       return
       
@@ -384,9 +493,15 @@ c     Netcdf variables
       character*80 dimname(nf90_max_var_dims)
       integer      varid
       integer      cdfid
-      real,allocatable, dimension (:)     :: lon,lat
+      real,allocatable, dimension (:)     :: lon,lat,lev
       real,allocatable, dimension (:,:)   :: tmp2
       real,allocatable, dimension (:,:,:) :: tmp3
+      real,allocatable, dimension (:)     :: aktmp,bktmp
+      character*80  leveltype
+      integer       vertical_swap
+      character*80  units
+      integer       nakbktmp
+      integer       dimid
 
 c     Auxiliary variables
       integer      isok
@@ -429,6 +544,39 @@ c     Check whether the list of dimensions is OK
         stop
       endif
 
+c     Get dimension of AK,BK
+      varname = 'nhym'
+      ierr = NF90_INQ_DIMID(fid,varname,dimid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_inquire_dimension(fid, dimid,len=nakbktmp)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+
+c     Check about the type of vertical levels
+      varname=dimname(3)
+      ierr = NF90_INQ_VARID(fid,varname,varid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_get_att(fid, varid, "standard_name", leveltype)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      if ( (leveltype.ne.'hybrid_sigma_pressure').and.
+     >     (leveltype.ne.'air_pressure'         ) )
+     >then
+         print*,' ERROR: input netCDF data must be on hybrid-sigma'
+         print*,'        or air pressure levels!',trim(leveltype)
+         stop
+      endif
+
+c     Check that vardim(3)==#AK,BK for hybrid-sigmal levels
+      if ( (leveltype.eq.'hybrid_sigma_pressure').and.
+     >     (dimname(3).eq.'lev') )
+     >then
+        if ( nakbktmp.ne.vardim(3) ) then
+           print*,' ERROR: for hybrid-sigma pressure levels, #AK,BK'
+           print*,'        must agree with number of vertical levels'
+           print*,'        ',vardim(3),nakbktmp
+           stop
+        endif
+      endif
+
 c     Allocate memory for reading arrays - depending on <closear>
       allocate(tmp2(vardim(1),vardim(2)),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array tmp2     ***'
@@ -438,8 +586,14 @@ c     Allocate memory for reading arrays - depending on <closear>
       if (stat.ne.0) print*,'*** error allocating array lon     ***'
       allocate(lat(vardim(2)),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array lat     ***'
+      allocate(lev(vardim(3)),stat=stat)
+      if (stat.ne.0) print*,'*** error allocating array lev     ***'
+      allocate(aktmp(nakbktmp),stat=stat)
+      if (stat.ne.0) print*,'*** error allocating array aktmp   ***'
+      allocate(bktmp(nakbktmp),stat=stat)
+      if (stat.ne.0) print*,'*** error allocating array bktmp   ***'
 
-c     Get domain boundaries
+c     Get domain boundaries - longitude, latitude, levels
       varname = dimname(1)
       ierr = NF90_INQ_VARID(fid,varname,varid)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
@@ -450,6 +604,64 @@ c     Get domain boundaries
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       ierr = nf90_get_var(fid,varid,lat)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      varname = dimname(3)
+      ierr = NF90_INQ_VARID(fid,varname,varid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_get_var(fid,varid,lev)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+
+c     Get ak and bk
+      varname='hyam'
+      ierr = NF90_INQ_VARID(fid,varname,varid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_get_var(fid,varid,aktmp)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      varname='hybm'
+      ierr = NF90_INQ_VARID(fid,varname,varid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_get_var(fid,varid,bktmp)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+
+c     Check that unit of ak is in hPa - if necessary correct it
+      varname='hyam'
+      ierr = NF90_INQ_VARID(fid,varname,varid)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      ierr = nf90_get_att(fid, varid, "units", units)
+      IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      if ( units.eq.'Pa' ) then
+         do k=1,nakbktmp
+            aktmp(k) = 0.01 * aktmp(k)
+         enddo
+      endif
+
+c     Check that unit of lev is in hPa - if necessary correct it
+      if ( leveltype.eq.'air_pressure' ) then
+         varname='lev'
+         ierr = NF90_INQ_VARID(fid,varname,varid)
+         IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+         ierr = nf90_get_att(fid, varid, "units", units)
+         IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+         if ( units.eq.'Pa' ) then
+            do k=1,vardim(3)
+               lev(k) = 0.01 * lev(k)
+            enddo
+         endif
+      endif
+
+c     Decide whether to swap vertical levels
+      vertical_swap = 1
+      if ( leveltype.eq.'hybrid_sigma_pressure') then
+        if ( (aktmp(1) + bktmp(1) * 1000.).gt.
+     >       (aktmp(2) + bktmp(2) * 1000.) )
+     >  then
+          vertical_swap = 0
+        endif
+      elseif ( leveltype.eq.'air_pressure') then
+        if ( lev(1).gt.lev(2) ) then
+          vertical_swap = 0
+        endif
+      endif
+c      print*,' Vertical SWAP ',trim(fieldname),' -> ', vertical_swap
 
 c     Read data 
       ierr = NF90_INQ_VARID(fid,fieldname,varid)
@@ -468,7 +680,7 @@ c     If the field is 2D, expand it to 3D - simple handling of 2D tracing
          enddo
       endif
 
-c     Save the ouput array - close on request
+c     Decide whether to close arrays
       delta = varmax(1)-varmin(1)-360.
       if (abs(delta+dx).lt.eps) then
           closear = 1
@@ -476,10 +688,15 @@ c     Save the ouput array - close on request
           closear = 0
       endif
 
+c     Save output array - close array and swap on demand
       do j=1,vardim(2)
         do k=1,vardim(3)
           do i=1,vardim(1)
-             field(i,j,k) = tmp3(i,j,vardim(3)-k+1)
+             if ( vertical_swap.eq.1 ) then
+                 field(i,j,k) = tmp3(i,j,vardim(3)-k+1)
+             else
+                 field(i,j,k) = tmp3(i,j,k)
+             endif
           enddo
           if (closear.eq.1) field(vardim(1)+1,j,k) = field(1,j,k)
         enddo

@@ -17,7 +17,7 @@ c     --------------------------------------------------------------------
 
 c     Maximum number of levels for input files
       integer   nlevmax
-      parameter	(nlevmax=100)
+      parameter	(nlevmax=150)
 
 c     Maximum number of input files (dates, length of trajectories)
       integer   ndatmax
