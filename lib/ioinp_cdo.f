@@ -192,6 +192,8 @@ c     Check about the type of vertical levels
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       ierr = nf90_get_att(cdfid, varid, "standard_name", leveltype)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+c     MeteoSwiss hack until fieldextra 12.3.2 is opr
+      leveltype = 'hybrid_sigma_pressure'
       if ( (leveltype.ne.'hybrid_sigma_pressure').and.
      >     (leveltype.ne.'air_pressure'         ) )
      >then
@@ -337,7 +339,7 @@ c     If not full list of vertical levels, reduce AK,BK arrays
       if ( (leveltype.eq.'hybrid_sigma_pressure').and.
      >     (nakbktmp.ne.vardim(3) ) )
      >then
-         print*,' WARNING: only subset of vertical levels used...'
+         print*,' INFO: only subset of vertical levels used...'
          do k=1,vardim(3)
             if ( vertical_swap.eq.1 ) then
                aktmp(k) = aktmp( k+nakbktmp-vardim(3) )
@@ -431,6 +433,11 @@ c        Get AK,BK - vertical swap on demand
               endif
            enddo
          endif
+
+c        MeteoSwiss debug    
+c         do k=1,vardim(3)
+c           print*,k,ak(k),bk(k)
+c         enddo
 
       endif
 
@@ -557,6 +564,8 @@ c     Check about the type of vertical levels
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       ierr = nf90_get_att(fid, varid, "standard_name", leveltype)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+c     MeteoSwiss hack until filedextra 12.3.2 is opr
+      leveltype = 'hybrid_sigma_pressure'
       if ( (leveltype.ne.'hybrid_sigma_pressure').and.
      >     (leveltype.ne.'air_pressure'         ) )
      >then
@@ -570,10 +579,10 @@ c     Check that vardim(3)==#AK,BK for hybrid-sigmal levels
      >     (dimname(3).eq.'lev') )
      >then
         if ( nakbktmp.ne.vardim(3) ) then
-           print*,' ERROR: for hybrid-sigma pressure levels, #AK,BK'
-           print*,'        must agree with number of vertical levels'
-           print*,'        ',vardim(3),nakbktmp
-           stop
+c           print*,' ERROR: for hybrid-sigma pressure levels, #AK,BK'
+c           print*,'        must agree with number of vertical levels'
+c           print*,'        ',vardim(3),nakbktmp
+c           stop
         endif
       endif
 
@@ -661,6 +670,7 @@ c     Decide whether to swap vertical levels
           vertical_swap = 0
         endif
       endif
+c      print*,'DBG: ',vertical_swap,aktmp(1),bktmp(1),aktmp(2),bktmp(2)
 c      print*,' Vertical SWAP ',trim(fieldname),' -> ', vertical_swap
 
 c     Read data 
