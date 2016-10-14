@@ -420,6 +420,9 @@ c        Get AK,BK - vertical swap on demand
               if ( vertical_swap.eq.1 ) then
                  ak(k) = aktmp(vardim(3)-k+1)
                  bk(k) = bktmp(vardim(3)-k+1)
+              else
+                 ak(k) = aktmp(k)
+                 bk(k) = bktmp(k)
               endif
            enddo
          elseif (leveltype.eq.'air_pressure' ) then
@@ -518,6 +521,9 @@ c     Auxiliary variables
       integer      closear
       integer      stat
       real         delta
+
+c     Init mdv
+      mdv = -999.
 
 c     Get the number of dimensions -> ndim
       ierr = NF90_INQ_VARID(fid,fieldname,varid)
@@ -618,6 +624,10 @@ c     Get domain boundaries - longitude, latitude, levels
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
       ierr = nf90_get_var(fid,varid,lev)
       IF(ierr /= nf90_NoErr) PRINT *,NF90_STRERROR(ierr)
+      varmin(1) = lon(1)
+      varmax(1) = lon( vardim(1) )
+      varmin(2) = lat(1)
+      varmax(2) = lat( vardim(2) )
 
 c     Get ak and bk
       varname='hyam'
