@@ -6,6 +6,7 @@ C     * Calculates trajectories                                          *
 C     *                                                                  *
 C     *	Heini Wernli	   first version:	April 1993               *
 C     * Michael Sprenger   major upgrade:       2008-2009                *
+C     * Pirmin Kaufmann    adaptions for MeteoSwiss (MCH) Nov 2016       *
 C     *                                                                  *
 C     ********************************************************************
 
@@ -339,7 +340,9 @@ C     Allocate memory for some meteorological arrays
 C     Get memory for trajectory arrays
       allocate(trainp(ntra,1,ncol),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array trainp   ***' ! Input start coordinates
-      allocate(traout(ntra,ntim,4),stat=stat)
+C     MCH: need additional column for sp (surface pressure below trajectory)
+C     MCH: -> increase dim 3 from 4 to 5
+      allocate(traout(ntra,ntim,5),stat=stat) ! MCH
       if (stat.ne.0) print*,'*** error allocating array traout   ***' ! Output trajectories
       allocate(xx0(ntra),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array xx0      ***' ! X position (longitude)
@@ -465,12 +468,22 @@ C       Interpolate surface pressure to actual position (from first input file)
      >                   nx,ny,nz,xmin,ymin,dx,dy,mdv)
         sp = int_index4 (spt1,spt1,nx,ny,1,xind,yind,1.,0.,mdv)
 
+C       MCH: store sp (surface pressure below trajectory) in traout
+        traout(i,itim,5) = sp          ! MCH
+
 c       Decide whether to keep the trajectory
         if ( pp0(i).gt.sp ) then
             write(*,'(a30,3f10.2)')
      >               'WARNING: starting point below topography ',
      >               xx0(i),yy0(i),pp0(i)
-            leftflag(i) = 1
+C           MCH: handle starting point according to jump flag           ! MCH
+            if (jflag.eq.1) then                                        ! MCH
+               pp0(i) = sp - 10.                                        ! MCH
+C              MCH: save new staring height                             ! MCH
+               traout(i,itim,4) = pp0(i)                                ! MCH
+            else                                                        ! MCH
+               leftflag(i) = 1
+            endif                                                       ! MCH
         endif
 
       enddo
@@ -903,6 +916,15 @@ c          if ( mod(wstep,deltout).eq.0 ) then
                  traout(i,itim,2) = xx0(i)
                  traout(i,itim,3) = yy0(i)
                  traout(i,itim,4) = pp0(i)
+C                MCH: Interpolate surface pressure to actual position   ! MCH
+                 call get_index4 (xind,yind,pind,xx0(i),yy0(i),1050.,   ! MCH
+     >                reltpos1,                                         ! MCH
+     >                p3t0,p3t1,spt0,spt1,3,                            ! MCH
+     >                nx,ny,nz,xmin,ymin,dx,dy,mdv)                     ! MCH
+                 sp = int_index4 (spt0,spt1,nx,ny,1,xind,yind,1.,       ! MCH
+     >                reltpos1,mdv)                                     ! MCH
+C                MCH: store sp (surface pressure below traj.) in traout ! MCH
+                 traout(i,itim,5) = sp                                  ! MCH
               enddo
             endif
           endif
@@ -916,8 +938,11 @@ c     Write trajectory file
       vars(2)  ='lon'
       vars(3)  ='lat'
       vars(4)  ='p'
-      call wopen_tra(cdfid,cdfname,ntra,ntim,4,reftime,vars,outmode)
-      call write_tra(cdfid,traout,ntra,ntim,4,outmode)
+      vars(5)  ='ps'
+C     MCH: write additional column ps (surface pressure below trajectory)
+C     MCH: -> increase number of columns from 4 to 5
+      call wopen_tra(cdfid,cdfname,ntra,ntim,5,reftime,vars,outmode)  ! MCH
+      call write_tra(cdfid,traout,ntra,ntim,5,outmode)                ! MCH
       call close_tra(cdfid,outmode)   
 
 c     Write some status information, and end of program message

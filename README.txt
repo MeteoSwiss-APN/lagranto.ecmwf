@@ -46,8 +46,8 @@ or if you are in your cloned lagranto.ecmwf directory
 
   export DYN_TOOLS=$(dirname $PWD)
 
-The script install.csh needs the environment variables
-DYN_TOOLS and additionally LAGRANTO
+The script install.csh needs the environment variable
+DYN_TOOLS, and additionally LAGRANTO
 
   export LAGRANTO=$DYN_TOOLS/lagranto.ecmwf
 
@@ -61,8 +61,8 @@ servers. Use the follwing install commands to generate the needed executables.
 Essential for caltra are only the steps 'lib' and 'caltra'.
 
 Caution: The "install.csh links" step creates a number of soft links into the
-         bin directory. Even without the .sh ending, they point to the wrapper
-         scripts rather than the executables directly!
+         bin directory. Even though they don't have the .sh ending, they do point
+         to the wrapper scripts rather than the executables directly!
 
   cd ${LAGRANTO}/
 
@@ -91,13 +91,14 @@ following calls:
   bin/lagrantohelp reference
   bin/lagrantohelp caltra
 
-Note: The documentation applies to the wrapper scripts, not to the executables
+Note: The documentation refers to the wrapper scripts, not to the executables
       themselves!  In the case of caltra, all option values are stored in the file
       caltra.param by the wrapper script that is then read by the caltra
-      executable.
+      executable. At MeteoSwiss, the program latrac is used to produces the
+      file caltra.param.
 
 In case you need to see the documentation for caltra without the help
-of lagrantohelp, use the command:
+of lagrantohelp, may use the command:
 
   man caltra $LAGRANTO/docu/man/caltra.0
 
