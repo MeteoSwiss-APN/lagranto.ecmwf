@@ -333,7 +333,7 @@ C     Allocate memory for some meteorological arrays
       allocate(tht1(nx*ny*nz),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array tht1 ***'
       allocate(sth0(nx*ny),stat=stat)
-      if (stat.ne.0) print*,'*** error allocating array spt0 ***'   ! Surface potential temperature
+      if (stat.ne.0) print*,'*** error allocating array sth0 ***'   ! Surface potential temperature
       allocate(sth1(nx*ny),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array sth1 ***'
 
@@ -341,7 +341,7 @@ C     Get memory for trajectory arrays
       allocate(trainp(ntra,1,ncol),stat=stat)
       if (stat.ne.0) print*,'*** error allocating array trainp   ***' ! Input start coordinates
 C     MCH: need additional column for sp (surface pressure below trajectory)
-C     MCH: -> increase dim 3 from 4 to 5
+C     MCH: -> increase dimension 3 from 4 to 5
       allocate(traout(ntra,ntim,5),stat=stat) ! MCH
       if (stat.ne.0) print*,'*** error allocating array traout   ***' ! Output trajectories
       allocate(xx0(ntra),stat=stat)
@@ -916,6 +916,7 @@ c          if ( mod(wstep,deltout).eq.0 ) then
                  traout(i,itim,2) = xx0(i)
                  traout(i,itim,3) = yy0(i)
                  traout(i,itim,4) = pp0(i)
+
 C                MCH: Interpolate surface pressure to actual position   ! MCH
                  call get_index4 (xind,yind,pind,xx0(i),yy0(i),1050.,   ! MCH
      >                reltpos1,                                         ! MCH
@@ -925,6 +926,7 @@ C                MCH: Interpolate surface pressure to actual position   ! MCH
      >                reltpos1,mdv)                                     ! MCH
 C                MCH: store sp (surface pressure below traj.) in traout ! MCH
                  traout(i,itim,5) = sp                                  ! MCH
+
               enddo
             endif
           endif
@@ -939,10 +941,10 @@ c     Write trajectory file
       vars(3)  ='lat'
       vars(4)  ='p'
       vars(5)  ='ps'
-C     MCH: write additional column ps (surface pressure below trajectory)
-C     MCH: -> increase number of columns from 4 to 5
-      call wopen_tra(cdfid,cdfname,ntra,ntim,5,reftime,vars,outmode)  ! MCH
-      call write_tra(cdfid,traout,ntra,ntim,5,outmode)                ! MCH
+C     MCH: write additional column ps (surface pressure below traj.)    ! MCH
+C     MCH: -> increase number of columns from 4 to 5                    ! MCH
+      call wopen_tra(cdfid,cdfname,ntra,ntim,5,reftime,vars,outmode)    ! MCH
+      call write_tra(cdfid,traout,ntra,ntim,5,outmode)                  ! MCH
       call close_tra(cdfid,outmode)   
 
 c     Write some status information, and end of program message

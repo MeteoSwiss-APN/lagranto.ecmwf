@@ -10,23 +10,23 @@ see further below.
 See LICENCE.pdf for the full text of the licence.
 
 ***********************************************************************
-* Copyright 2015 *
-* Heini Wernli and Michael Sprenger *
-* *
-* This file is part of LAGRANTO. *
-* *
-* LAGRANTO is free software: you can redistribute it and/or modify *
+* Copyright 2015                                                      *
+* Heini Wernli and Michael Sprenger                                   *
+*                                                                     *
+* This file is part of LAGRANTO.                                      *
+*                                                                     *
+* LAGRANTO is free software: you can redistribute it and/or modify    *
 * it under the terms of the GNU General Public License as published by*
-* the Free Software Foundation, either version 3 of the License, or *
-* (at your option) any later version. *
-* *
-* LAGRANTO is distributed in the hope that it will be useful, *
-* but WITHOUT ANY WARRANTY; without even the implied warranty of *
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the *
-* GNU General Public License for more details. *
-* *
-* You should have received a copy of the GNU General Public License *
-* along with LAGRANTO. If not, see http://www.gnu.org/licenses. *
+* the Free Software Foundation, either version 3 of the License, or   *
+* (at your option) any later version.                                 *
+*                                                                     *
+* LAGRANTO is distributed in the hope that it will be useful,         *
+* but WITHOUT ANY WARRANTY; without even the implied warranty of      *
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
+* GNU General Public License for more details.                        *
+*                                                                     *
+* You should have received a copy of the GNU General Public License   *
+* along with LAGRANTO. If not, see http://www.gnu.org/licenses.       *
 ***********************************************************************
 
 
@@ -64,7 +64,7 @@ Caution: The "install.csh links" step creates a number of soft links into the
          bin directory. Even though they don't have the .sh ending, they do point
          to the wrapper scripts rather than the executables directly!
 
-  cd ${LAGRANTO}/
+  cd ${LAGRANTO}
 
   ./install.csh clean    # Some No match/No such file messages might appear
   ./install.csh lib      # Copies relevant ioinp_*.f to ioinp.f prior to compilation
@@ -107,10 +107,15 @@ of lagrantohelp, may use the command:
 Test run
 --------
 
-Define the environment variable LAGRANTO (as explained above, assuming you have placed the
-lagranto.ecmwf directory on $SCRATH):
+Define the environment variable LAGRANTO (as explained above). 
+
+Assuming you have placed the lagranto.ecmwf directory on $SCRATCH):
 
   export LAGRANTO=$SCRATCH/lagranto.ecmwf
+
+or using the current directory, if this is lagranto.ecmwf:
+
+  export LAGRANTO=$PWD
 
 Create a test directory and change to it.
 
