@@ -34,22 +34,18 @@ Installation
 ============
 
 Clone this repository to your account (these instructions are made for the
-MeteoSwiss server at CSCS). To avoid cluttering the home directory with object and executable
-files, you may want to place the source code on $SCRATCH.
+MeteoSwiss server at CSCS).
+
+Change to the cloned repository:
+
+  cd lagranto.ecmwf
 
 Let the environment variable DYN_TOOLS point to the location, where the cloned
-repository is be placed.
-
-  export DYN_TOOLS=$SCRATCH
-
-or if you are in your cloned lagranto.ecmwf directory
-
-  export DYN_TOOLS=$(dirname $PWD)
-
-The script install.csh needs the environment variable
+repository is be placed. The script install.csh needs the environment variable
 DYN_TOOLS, and additionally LAGRANTO
 
-  export LAGRANTO=$DYN_TOOLS/lagranto.ecmwf
+  export DYN_TOOLS=$(dirname $PWD)
+  export LAGRANTO=$PWD
 
 Note: While the location of DYN_TOOLS can be chosen freely, the
       directory name "lagranto.ecmwf" in the environment variable
@@ -60,16 +56,17 @@ The script "install.csh" has been adapted to the MeteoSwiss needs on the CSCS
 servers. Use the follwing install commands to generate the needed executables.
 Essential for caltra are only the steps 'lib' and 'caltra'.
 
-Caution: The "install.csh links" step creates a number of soft links into the
-         bin directory. Even though they don't have the .sh ending, they do point
-         to the wrapper scripts rather than the executables directly!
+  ./install.csh lib
+  ./install.csh caltra
 
-  cd ${LAGRANTO}
+This installation is sufficient for operational use.
+
+All other tools are not needed. If you nevertheless want to install them,
+the full installation sequence for all tools would be:
 
   ./install.csh clean    # Some No match/No such file messages might appear
   ./install.csh lib      # Copies relevant ioinp_*.f to ioinp.f prior to compilation
   ./install.csh caltra
-
   ./install.csh create_startf
   ./install.csh trace
   ./install.csh select   # produces 2 compiler warnings
@@ -78,6 +75,10 @@ Caution: The "install.csh links" step creates a number of soft links into the
   ./install.csh goodies  # uses adapted tracal.install
   ./install.csh docu
   ./install.csh links
+
+Caution: The "install.csh links" step creates a number of soft links into the
+         bin directory. Even though they don't have the .sh ending, they in fact
+         point to the wrapper scripts rather than the executables directly!
 
 
 Documentation

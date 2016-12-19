@@ -86,6 +86,13 @@ endif
 # Set LAGRANTO environment variable
 setenv LAGRANTO ${path_devel}
 
+# Check if NetCDF environment has been successfully loaded
+which nc-config >& /dev/null
+if ( $? ) then
+    echo 'NetCDF environment not loaded, load with "module load netCDF-Fortran"'
+    exit 1
+endif
+
 # Set netCDF paths
 setenv NETCDF_LIB `nc-config --flibs`
 setenv NETCDF_INC `nc-config --fflags`
